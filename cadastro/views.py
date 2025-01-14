@@ -238,7 +238,7 @@ def gerar_json_view_pecas(request):
     return JsonResponse({'pecas': resultado})
 
 def gerar_json_view_conjuntos(request):
-    pecas = Pecas.objects.filter(~Q(status='ok'))
+    pecas = Pecas.objects.filter(~Q(status='ok'), tipo='conjunto')
     resultado = []
     for peca in pecas:
         # Informações da peça
@@ -258,7 +258,7 @@ def gerar_json_view_conjuntos(request):
             {
                 'ordem': etapa.ordem,
                 'processo': etapa.get_processo_display(),
-                'descricao': etapa.get_descricao_display(),
+                'descricao': etapa.descricao,
                 'destino': etapa.get_destino_display(),
                 'desvio': etapa.get_desvio_display(),
             }
@@ -269,9 +269,14 @@ def gerar_json_view_conjuntos(request):
         recursos_data = [
             {
                 'ordem': recurso.ordem,
-                'recurso': recurso.recurso,
+                'recurso': {
+                    'codigo': recurso.recurso.codigo,
+                    'descricao': recurso.recurso.descricao
+                },
                 'quantidade': recurso.quantidade,
                 'dep_origem': recurso.get_dep_origem_display(),
+                'flag_romaneio': recurso.flag_romaneio,
+                'cx_acess': recurso.cx_acess,            
             }
             for recurso in peca.recursos.all()
         ]

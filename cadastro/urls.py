@@ -23,5 +23,4 @@ urlpatterns = [
     # Cadastros gerais
     path('cadastrar-classe/', views.cadastrar_classe, name='cadastrar_classe'),
 
-
 ]
