@@ -229,6 +229,7 @@ def gerar_json_view_pecas(request):
 
         # Monta o resultado final para a peça
         resultado.append({
+            'id':peca.id,
             'peca': peca_data,
             'etapas': etapas_data,
             'recursos': recursos_data,

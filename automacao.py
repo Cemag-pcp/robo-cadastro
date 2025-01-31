@@ -2,7 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException,StaleElementReferenceException
+from selenium.common.exceptions import TimeoutException,StaleElementReferenceException,ElementNotInteractableException
 from selenium.webdriver.common.alert import Alert
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.keys import Keys
@@ -19,9 +19,9 @@ def login(nav):
     try:
         # logando
         WebDriverWait(nav, 10).until(EC.element_to_be_clickable(
-            (By.XPATH, '//*[@id="username"]'))).send_keys("luan araujo")
+            (By.XPATH, '//*[@id="username"]'))).send_keys("ti.prod")
         WebDriverWait(nav, 10).until(EC.element_to_be_clickable(
-            (By.XPATH, '//*[@id="password"]'))).send_keys("luanaraujo8")
+            (By.XPATH, '//*[@id="password"]'))).send_keys("Cemag@15")
         WebDriverWait(nav, 10).until(EC.element_to_be_clickable(
             (By.XPATH, '//*[@id="password"]'))).send_keys(Keys.ENTER)
 
@@ -87,7 +87,7 @@ def menu_cadastro(nav):
     click_producao = test_list.loc[test_list[0] == 'Projeto'].reset_index(drop=True)['index'][0]
     lista_menu[click_producao].click()
     time.sleep(2)
-        
+
     #Clicando em Materiais e Produtos
     lista_menu, test_list = listar(nav, 'webguiTreeNodeLabel')
     time.sleep(2)
@@ -176,37 +176,40 @@ def add_novo_item(nav):
         status = 'Erro ao clicar na lupa'
         return status
     
-def mudar_visualizacao(nav, xpath,xpath_classe,classe_esperada,max_tentativas=5, intervalo=2):
+def mudar_visualizacao(nav, xpath, xpath_classe, classe_esperada, max_tentativas=5, intervalo=2):
+    """
+    Tenta clicar em um botão para mudar a visualização e verifica se uma classe específica aparece.
+    """
+
     tentativas = 0
     actions = ActionChains(nav)
+
     while tentativas < max_tentativas:
         try:
-            # Localizar o botão
-            btn = WebDriverWait(nav, 1).until(EC.presence_of_element_located((By.XPATH, xpath)))
             
             classe_atual = WebDriverWait(nav, 1).until(EC.presence_of_element_located((By.XPATH, xpath_classe))).get_attribute('class')
-            # Capturar a classe do botão
-            # classe_atual = btn.get_attribute('class')
-            print(f"Tentativa {tentativas + 1}: Classe atual - {classe_atual}")
+
+            if classe_atual == classe_esperada:
+                print(f"Classe esperada '{classe_esperada}' detectada!")
+                return True
+            else:
+                # Localizar o botão
+                btn = WebDriverWait(nav, 1).until(EC.presence_of_element_located((By.XPATH, xpath)))
+
+                # Clicar no botão
+                actions.move_to_element(btn).click().perform()
+                print(f"Tentativa {tentativas + 1}: Botão clicado.")
             
-            # Verificar se a classe esperada apareceu
-            if classe_esperada in classe_atual:
-                print("Classe esperada detectada!")
-                return True  # Sai do loop
-            
-            # Tentar clicar no botão
-            actions.move_to_element(btn).click().perform()
-            print("Botão clicado.")
-            
-            # Aguarda antes de tentar novamente
-            time.sleep(intervalo)
-            tentativas += 1
         except TimeoutException:
-            print("Elemento não encontrado. Tentando novamente...")
-            time.sleep(intervalo)
-            tentativas += 1
-    
-    print("Falha ao encontrar a classe esperada.")
+            print(f"Tentativa {tentativas + 1}: Timeout - Elemento não encontrado ou classe não atualizada.")
+        except (StaleElementReferenceException, ElementNotInteractableException) as e:
+            print(f"Tentativa {tentativas + 1}: Erro ao interagir com o elemento: {e}")
+        
+        # Incrementa tentativas e espera antes de tentar novamente
+        tentativas += 1
+        time.sleep(intervalo)
+
+    print("Falha ao encontrar a classe esperada após o número máximo de tentativas.")
     return False
 
 def digitar_como_humano(elemento, texto, intervalo=0.1):
@@ -250,7 +253,8 @@ def carregamento(nav):
                 carregamento = WebDriverWait(nav, 3).until(EC.presence_of_element_located((By.XPATH, '//*[@id="statusMessageBox"]')))
             except TimeoutException:
                 # Se o elemento não for encontrado, interrompa o loop
-                break
+                iframes(nav)
+                return
     except TimeoutException:
         # Não há mensagem de carregamento inicial
         pass    
@@ -268,7 +272,8 @@ def carregamento(nav):
                 carregamento =  WebDriverWait(nav, 3).until(EC.presence_of_element_located((By.XPATH, '//*[@id="waitMessageBox"]')))
             except TimeoutException:
                 # Se o elemento não for encontrado, interrompa o loop
-                break
+                iframes(nav)
+                return
     except TimeoutException:
         # Não há mensagem de carregamento inicial
         pass  
@@ -286,7 +291,8 @@ def carregamento(nav):
                 carregamento =  WebDriverWait(nav, 3).until(EC.presence_of_element_located((By.XPATH, '//*[@id="progressMessageBox"]')))
             except TimeoutException:
                 # Se o elemento não for encontrado, interrompa o loop
-                break
+                iframes(nav)
+                return
     except TimeoutException:
         # Não há mensagem de carregamento inicial
         pass    
@@ -304,7 +310,8 @@ def carregamento(nav):
                 carregamento = WebDriverWait(nav, 3).until(EC.presence_of_element_located((By.XPATH, '//*[@id="content_waitMessageBox"]')))
             except TimeoutException:
                 # Se o elemento não for encontrado, interrompa o loop
-                break
+                iframes(nav)
+                return
     except TimeoutException:
         # Não há mensagem de carregamento inicial
         iframes(nav)
@@ -331,6 +338,7 @@ def preencher_cadastro_peca(nav, dados):
         codigo_input.send_keys(dados['peca']['codigo'])
         time.sleep(1.5)
         codigo_input.send_keys(Keys.TAB)
+        print('Codigo ok')
 
         carregamento(nav)
 
@@ -339,7 +347,7 @@ def preencher_cadastro_peca(nav, dados):
         if erro:
             print(f"{erro}, informar na base e pular para outro item")
 
-            return erro
+            # return erro
 
         ref_principal_input=WebDriverWait(nav, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="explorer"]//input[@name="REFERENCIAPRINCIPAL"]')))
         ref_principal_input.click()
@@ -349,6 +357,7 @@ def preencher_cadastro_peca(nav, dados):
         # digitar_como_humano(ref_principal_input, descricao_texto, intervalo=0.2)  # Intervalo de 200ms entre as letras
         time.sleep(1.5)
         ref_principal_input.send_keys(Keys.TAB)
+        print('ref principal ok')
 
         carregamento(nav)
 
@@ -357,7 +366,7 @@ def preencher_cadastro_peca(nav, dados):
         if erro:
             print(f"{erro}, informar na base e pular para outro item")
 
-            return erro
+            # return erro
         
         classe_input=WebDriverWait(nav, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="explorer"]//input[@name="CLASSE"]')))
         classe_input.send_keys(Keys.CONTROL + 'A')
@@ -366,6 +375,7 @@ def preencher_cadastro_peca(nav, dados):
         # digitar_como_humano(classe_input, descricao_texto, intervalo=0.2)  # Intervalo de 200ms entre as letras
         time.sleep(1.5)
         classe_input.send_keys(Keys.TAB)
+        print('classe ok')
 
         carregamento(nav)
 
@@ -374,7 +384,7 @@ def preencher_cadastro_peca(nav, dados):
         if erro:
             print(f"{erro}, informar na base e pular para outro item")
 
-            return erro
+            # return erro
 
         nome_input=WebDriverWait(nav, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="explorer"]//input[@name="NOME"]')))
         nome_input.send_keys(Keys.CONTROL + 'A')
@@ -383,15 +393,8 @@ def preencher_cadastro_peca(nav, dados):
         # digitar_como_humano(nome_input, descricao_texto, intervalo=0.2)  # Intervalo de 200ms entre as letras
         time.sleep(1.5)
         nome_input.send_keys(Keys.TAB)
-
-        carregamento(nav)
-
-        #verifica se mostrou erro
-        erro=verificar_se_erro(nav)
-        if erro:
-            print(f"{erro}, informar na base e pular para outro item")
-
-            return erro
+        time.sleep(0.5)
+        print('nome ok')
 
         desc_generica_input=WebDriverWait(nav, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="explorer"]//input[@name="DESCRICAOGENERICA"]')))
         desc_generica_input.send_keys(Keys.CONTROL + 'A')
@@ -400,15 +403,8 @@ def preencher_cadastro_peca(nav, dados):
         # digitar_como_humano(desc_generica_input, descricao_texto, intervalo=0.2)  # Intervalo de 200ms entre as letras
         time.sleep(1.5)
         desc_generica_input.send_keys(Keys.TAB)
-
-        carregamento(nav)
-
-        #verifica se mostrou erro
-        erro=verificar_se_erro(nav)
-        if erro:
-            print(f"{erro}, informar na base e pular para outro item")
-
-            return erro
+        time.sleep(0.5)
+        print('desc generica ok')
 
         un_input=WebDriverWait(nav, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="explorer"]//input[@name="UNIDMEDIDA"]')))
         un_input.send_keys(Keys.CONTROL + 'A')
@@ -417,20 +413,13 @@ def preencher_cadastro_peca(nav, dados):
         # digitar_como_humano(un_input, descricao_texto, intervalo=0.2)  # Intervalo de 200ms entre as letras
         time.sleep(1.5)
         un_input.send_keys(Keys.TAB)
-
-        carregamento(nav)
-
-        #verifica se mostrou erro
-        erro=verificar_se_erro(nav)
-        if erro:
-            print(f"{erro}, informar na base e pular para outro item")
-
-            return erro
+        time.sleep(0.5)
+        print('unidade ok')
 
     except:
         status = 'Erro no input de info genericas'
         registrar_status(dados['peca']['codigo'], status)
-        return status
+        # return status
 
     # info fiscais
     try:
@@ -441,7 +430,8 @@ def preencher_cadastro_peca(nav, dados):
         # digitar_como_humano(class_fiscal_input, descricao_texto, intervalo=0.2)  # Intervalo de 200ms entre as letras
         time.sleep(1.5)
         class_fiscal_input.send_keys(Keys.TAB)
-        
+        print('class fiscal ok')
+
         carregamento(nav)
 
         #verifica se mostrou erro
@@ -449,7 +439,7 @@ def preencher_cadastro_peca(nav, dados):
         if erro:
             print(f"{erro}, informar na base e pular para outro item")
 
-            return erro
+            # return erro
 
         procedencia_input=WebDriverWait(nav, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="explorer"]//input[@name="PROCEDENCI"]')))
         procedencia_input.send_keys(Keys.CONTROL + 'A')
@@ -458,6 +448,7 @@ def preencher_cadastro_peca(nav, dados):
         # digitar_como_humano(procedencia_input, descricao_texto, intervalo=0.2)  # Intervalo de 200ms entre as letras
         time.sleep(1.5)
         procedencia_input.send_keys(Keys.TAB)
+        print('procedencia ok')
 
         carregamento(nav)
 
@@ -466,27 +457,36 @@ def preencher_cadastro_peca(nav, dados):
         if erro:
             print(f"{erro}, informar na base e pular para outro item")
 
-            return erro
+            # return erro
 
     except:
         status = 'Erro no input de info fiscais'
         registrar_status(dados['peca']['codigo'], status)
-        return status
+        # return status
 
     #Clicar na tabela de etapas e composição de recursos
     WebDriverWait(nav, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="explorer_RECURSOETAPA"]'))).click()
     time.sleep(4)
+    print('click na tabela de etapas e composição de recursos')
 
     # Clica em adicionar etapa
     clicar_ate_classe(nav,'//*[@id="explorer_RECURSOETAPA"]//div[@id="insertButton"]','grid-titleBar-button grid-titleBar-newRecordButton-inactive')
     time.sleep(2)
+    print('click em adicionar etapa')
+
+    # Clicar no campo de ordem
+    WebDriverWait(nav, 4).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="explorer_RECURSOETAPA"]//input[@name="ORDEM"]'))).click()
+    time.sleep(2)
+    print('click em campo de ordem')
 
     #Mudar visualização de etapas
     mudar_visualizacao(nav, '//*[@id="explorer_RECURSOETAPA"]//div[@id="changeViewButton"]', '//*[@id="explorer_RECURSOETAPA"]//input[@name="ORDEM"]','field formView editingRecord focus control-input')
+    print('mudar visualização de etapas')
 
     cont_etapa=1
 
     for etapa in dados['etapas']:
+        # etapa = dados['etapas'][0]
 
         actions = ActionChains(nav)
 
@@ -508,6 +508,7 @@ def preencher_cadastro_peca(nav, dados):
             # digitar_como_humano(ordem_input, descricao_texto, intervalo=0.2)  # Intervalo de 200ms entre as letras
             time.sleep(1.5)
             ordem_input.send_keys(Keys.TAB)
+            print('ordem ok')
 
             carregamento(nav)
 
@@ -516,7 +517,7 @@ def preencher_cadastro_peca(nav, dados):
             if erro:
                 print(f"{erro}, informar na base e pular para outro item")
 
-                return erro
+                # return erro
 
             # Preenche o campo "Processo"
             processo_input = WebDriverWait(nav, 10).until(EC.element_to_be_clickable((
@@ -529,6 +530,7 @@ def preencher_cadastro_peca(nav, dados):
             # digitar_como_humano(processo_input, descricao_texto, intervalo=0.2)  # Intervalo de 200ms entre as letras
             time.sleep(1.5)
             processo_input.send_keys(Keys.TAB)
+            print('processo ok')
 
             carregamento(nav)
 
@@ -537,7 +539,7 @@ def preencher_cadastro_peca(nav, dados):
             if erro:
                 print(f"{erro}, informar na base e pular para outro item")
 
-                return erro
+                # return erro
 
             # Preenche o campo "Descrição"
             descricao_input = WebDriverWait(nav, 10).until(EC.element_to_be_clickable((
@@ -548,6 +550,7 @@ def preencher_cadastro_peca(nav, dados):
             # digitar_como_humano(descricao_input, descricao_texto, intervalo=0.2)  # Intervalo de 200ms entre as letras
             time.sleep(1.5)
             descricao_input.send_keys(Keys.TAB)
+            print('descricao ok')
 
             carregamento(nav)
 
@@ -556,7 +559,7 @@ def preencher_cadastro_peca(nav, dados):
             if erro:
                 print(f"{erro}, informar na base e pular para outro item")
 
-                return erro
+                # return erro
 
             # Preenche o campo "Destino"
             destino_input = WebDriverWait(nav, 10).until(EC.element_to_be_clickable((
@@ -567,6 +570,7 @@ def preencher_cadastro_peca(nav, dados):
             # digitar_como_humano(destino_input, descricao_texto, intervalo=0.2)  # Intervalo de 200ms entre as letras
             time.sleep(1.5)
             destino_input.send_keys(Keys.TAB)
+            print('destino ok')
 
             carregamento(nav)
 
@@ -575,7 +579,7 @@ def preencher_cadastro_peca(nav, dados):
             if erro:
                 print(f"{erro}, informar na base e pular para outro item")
 
-                return erro
+                # return erro
 
             # Preenche o campo "Desvio"
             desvio_input = WebDriverWait(nav, 10).until(EC.element_to_be_clickable((
@@ -586,6 +590,7 @@ def preencher_cadastro_peca(nav, dados):
             # digitar_como_humano(desvio_input, descricao_texto, intervalo=0.2)  # Intervalo de 200ms entre as letras
             time.sleep(1.5)
             desvio_input.send_keys(Keys.TAB)
+            print('desvio ok')
 
             carregamento(nav)
 
@@ -594,27 +599,13 @@ def preencher_cadastro_peca(nav, dados):
             if erro:
                 print(f"{erro}, informar na base e pular para outro item")
 
-                return erro
-
-            # Clica no botão "Inserir" ou "Finalizar"
-            if etapa != dados['etapas'][-1]:  # Se não for a última etapa
-                # WebDriverWait(nav, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS"]//*[@id="postButton"]'))).click()
-                clicar_ate_classe(nav,'//*[@id="explorer_RECURSOETAPA"]//div[@id="insertButton"]','grid-titleBar-button grid-titleBar-newRecordButton-inactive')
-                carregamento(nav)
-                time.sleep(1.5)
-
-                carregamento(nav)
-                time.sleep(2)
-            else:  # Última etapa, finaliza
-                clicar_ate_classe(nav,'//*[@id="explorer_RECURSOETAPA"]//div[@id="postButton"]','grid-titleBar-button grid-titleBar-saveRecordButton-inactive')
-                carregamento(nav)
-                time.sleep(1.5)
+                # return erro
 
         except Exception as e:
             print(f"Erro ao preencher a etapa {etapa['ordem']}: {e}")
             status = 'Erro no preenchimento de etapas'
             # registrar_status(dados['peca']['codigo'], status)
-            return status  
+            # return status  
 
         time.sleep(2)
 
@@ -623,15 +614,25 @@ def preencher_cadastro_peca(nav, dados):
             # Clique na tabela de recursos
             WebDriverWait(nav, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS"]'))).click()
             time.sleep(2)
+            print('click tabela de recursos')
 
             #Clica em adicionar etapa
             clicar_ate_classe(nav,'//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS"]//div[@id="insertButton"]','grid-titleBar-button grid-titleBar-newRecordButton-inactive')
             time.sleep(2)
+            print('click add etapa')
+
+            # Clicar no campo de ordem
+            WebDriverWait(nav, 4).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS"]//tr[@id=0]//td[@fieldname="ORDEM"]'))).click()
+            time.sleep(2)
+            print('click campo de ordem')
 
             #Mudar visualização de recursos
             mudar_visualizacao(nav, '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS"]//div[@id="changeViewButton"]', '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS"]//input[@name="ORDEM"]','field formView editingRecord focus control-input')
+            print('click mudar visualização')
 
             for recurso in dados['recursos']:
+
+                # recurso = dados['recursos'][1]
 
                 try:
 
@@ -644,6 +645,7 @@ def preencher_cadastro_peca(nav, dados):
                     # digitar_como_humano(ordem_input, descricao_texto, intervalo=0.2)  # Intervalo de 200ms entre as letras
                     time.sleep(1.5)
                     ordem_input.send_keys(Keys.TAB)
+                    print('ordem ok')
 
                     carregamento(nav)
 
@@ -651,8 +653,8 @@ def preencher_cadastro_peca(nav, dados):
                     erro=verificar_se_erro(nav)
                     if erro:
                         print(f"{erro}, informar na base e pular para outro item")
-
-                        return erro
+                        registrar_status(dados['peca']['codigo'], erro)
+                        # return erro
 
                     # Preenche o campo "Recurso"
                     recurso_input = WebDriverWait(nav, 10).until(EC.element_to_be_clickable((
@@ -663,6 +665,7 @@ def preencher_cadastro_peca(nav, dados):
                     # digitar_como_humano(recurso_input, descricao_texto, intervalo=0.2)  # Intervalo de 200ms entre as letras
                     time.sleep(3)
                     recurso_input.send_keys(Keys.TAB)
+                    print('recurso ok')
 
                     carregamento(nav)
 
@@ -670,8 +673,8 @@ def preencher_cadastro_peca(nav, dados):
                     erro=verificar_se_erro(nav)
                     if erro:
                         print(f"{erro}, informar na base e pular para outro item")
-
-                        return erro
+                        registrar_status(dados['peca']['codigo'], erro)
+                        # return erro
 
                     # Preenche o campo "Quantidade"
                     quantidade_input = WebDriverWait(nav, 10).until(EC.element_to_be_clickable((
@@ -682,6 +685,7 @@ def preencher_cadastro_peca(nav, dados):
                     # digitar_como_humano(quantidade_input, descricao_texto, intervalo=0.2)  # Intervalo de 200ms entre as letras
                     time.sleep(1.5)
                     quantidade_input.send_keys(Keys.TAB)
+                    print('quantidade ok')
 
                     carregamento(nav)
 
@@ -689,8 +693,8 @@ def preencher_cadastro_peca(nav, dados):
                     erro=verificar_se_erro(nav)
                     if erro:
                         print(f"{erro}, informar na base e pular para outro item")
-
-                        return erro
+                        registrar_status(dados['peca']['codigo'], erro)
+                        # return erro
 
                     # Preenche o campo "Depósito origem"
                     destino_input = WebDriverWait(nav, 10).until(EC.element_to_be_clickable((
@@ -701,6 +705,7 @@ def preencher_cadastro_peca(nav, dados):
                     # digitar_como_humano(destino_input, descricao_texto, intervalo=0.2)  # Intervalo de 200ms entre as letras
                     time.sleep(1.5)
                     destino_input.send_keys(Keys.TAB)
+                    print('destino ok')
 
                     carregamento(nav)
 
@@ -709,7 +714,7 @@ def preencher_cadastro_peca(nav, dados):
                     if erro:
                         print(f"{erro}, informar na base e pular para outro item")
 
-                        return erro
+                        # return erro
 
                     # Clica no botão "Inserir" ou "Finalizar"
                     if recurso != dados['recursos'][-1]:  # Se não for a última etapa
@@ -724,31 +729,41 @@ def preencher_cadastro_peca(nav, dados):
                         carregamento(nav)
                         time.sleep(1.5)
 
-
                 except Exception as e:
                     print(f"Erro ao preencher recurso: {e}")
                     status = 'Erro no preenchimento de recursos'
-                    # registrar_status(dados['peca']['codigo'], status)
-                    return status   
-
-            # Clique na tabela de propriedades
-            WebDriverWait(nav, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS_PROPRIEDADES"]'))).click()
-            time.sleep(2)
-
-            #Clica em adicionar propriedade
-            clicar_ate_classe(nav,'//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS_PROPRIEDADES"]//div[@id="insertButton"]','grid-titleBar-button grid-titleBar-newRecordButton-inactive')
-            time.sleep(2)
-
-            #Mudar visualização de propriedades
-            mudar_visualizacao(nav, '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS_PROPRIEDADES"]//div[@id="changeViewButton"]', '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS_PROPRIEDADES"]//input[@name="CAMPOINTEIRO"]','field formView editingRecord focus control-input')
+                    registrar_status(dados['peca']['codigo'], status)
+                    # return status   
 
             #Propriedades
             if dados['propriedades']:
+
+                # Clique na tabela de propriedades
+                WebDriverWait(nav, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS_PROPRIEDADES"]'))).click()
+                time.sleep(2)
+                print('click na tabela de propriedades')
+
+                #Clica em adicionar propriedade
+                clicar_ate_classe(nav,'//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS_PROPRIEDADES"]//div[@id="insertButton"]','grid-titleBar-button grid-titleBar-newRecordButton-inactive')
+                time.sleep(2)
+                print('click add propriedades')
+
+                # Clicar no campo de ordem
+                WebDriverWait(nav, 4).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS_PROPRIEDADES"]//tr[@id=0]//td[@fieldname="CAMPOINTEIRO"]'))).click()
+                time.sleep(2)
+                print('click ordem')
+
+                #Mudar visualização de propriedades
+                mudar_visualizacao(nav, '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS_PROPRIEDADES"]//div[@id="changeViewButton"]', '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS_PROPRIEDADES"]//tr[@id=0]//td[@fieldname="CAMPOINTEIRO"]','grid-cell tableView browsingRecord editingRecord focus')
+                print('mudar visualização')
+
                 for propriedade in dados['propriedades']:
                     try:
                         propriedade_input = WebDriverWait(nav, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS_PROPRIEDADES"]//input[@name="CAMPOINTEIRO"]')))
                         propriedade_input.send_keys(propriedade['propriedade'])
                         time.sleep(2)
+                        propriedade_input.send_keys(Keys.TAB)
+                        time.sleep(1)
 
                         valor_input = WebDriverWait(nav, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS_PROPRIEDADES"]//input[@name="VALOR"]')))
                         time.sleep(2)
@@ -758,6 +773,7 @@ def preencher_cadastro_peca(nav, dados):
                         time.sleep(2)
                         valor_input.send_keys(Keys.TAB)
                         time.sleep(2)
+                        print('valor input')
 
                         carregamento(nav)
 
@@ -766,7 +782,19 @@ def preencher_cadastro_peca(nav, dados):
                         if erro:
                             print(f"{erro}, informar na base e pular para outro item")
 
-                            return erro
+                            # return erro
+
+                        # verificando se o campo de propriedade está preenchido
+                        propriedade_input = WebDriverWait(nav, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS_PROPRIEDADES"]//input[@name="CAMPOINTEIRO"]')))
+                        
+                        if propriedade_input.get_attribute('value') == '':
+                            propriedade_input.send_keys(propriedade['propriedade'])
+                            time.sleep(2)
+                            propriedade_input.send_keys(Keys.TAB)
+                            time.sleep(1)
+
+
+
 
                         # Clica no botão "Inserir" ou "Finalizar"
                         if propriedade != dados['propriedades'][-1]:  # Se não for a última etapa
@@ -781,7 +809,7 @@ def preencher_cadastro_peca(nav, dados):
                             erro=verificar_se_erro(nav)
                             if erro:
                                 print(f"{erro}, informar na base e pular para outro item")
-                                return erro
+                                # return erro
                         
                         else:  # Última etapa, finaliza
                             clicar_ate_classe(nav,'//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS_PROPRIEDADES"]//div[@id="postButton"]','grid-titleBar-button grid-titleBar-saveRecordButton-inactive')
@@ -791,13 +819,13 @@ def preencher_cadastro_peca(nav, dados):
                             erro=verificar_se_erro(nav)
                             if erro:
                                 print(f"{erro}, informar na base e pular para outro item")
-                                return erro
+                                # return erro
 
                     except Exception as e:
                         print(f"Erro ao preencher a propriedade: {e}")
                         status = 'Erro no preenchimento de propriedades'
                         registrar_status(dados['peca']['codigo'], status)
-                        return status
+                        # return status
 
             else:
                 time.sleep(2)
@@ -806,29 +834,27 @@ def preencher_cadastro_peca(nav, dados):
                 time.sleep(2)
                 actions.move_to_element(changeViewButton).click().perform()
                 time.sleep(2)
+        
+        # cont_etapa+=1
 
-            time.sleep(5)
+        # if etapa != dados['etapas'][-1]:  # Se não for a última etapa
+        #     # WebDriverWait(nav, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS"]//*[@id="postButton"]'))).click()
+        #     clicar_ate_classe(nav,'//*[@id="explorer_RECURSOETAPA"]//div[@id="postButton"]','grid-titleBar-button grid-titleBar-saveRecordButton-inactive')
+        #     clicar_ate_classe(nav,'//*[@id="explorer_RECURSOETAPA"]//div[@id="insertButton"]','grid-titleBar-button grid-titleBar-newRecordButton-inactive')
+        #     time.sleep(1.5)
+        # else:  # Última etapa, finaliza
+        #     clicar_ate_classe(nav,'//*[@id="explorer_RECURSOETAPA"]//div[@id="postButton"]','grid-titleBar-button grid-titleBar-saveRecordButton-inactive')
+        #     time.sleep(1.5)
 
-            #Mudar visualização de propriedades
-            mudar_visualizacao(nav, '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS_PROPRIEDADES"]//div[@id="changeViewButton"]', '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS_PROPRIEDADES"]//input[@name="VALOR"]','field tableView focus control-input')
+        time.sleep(5)
 
-            #Mudar visualização de recursos
-            mudar_visualizacao(nav, '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS"]//div[@id="changeViewButton"]', '//*[@id="explorer_RECURSOETAPA_ETAPARECURSOS"]//input[@name="INICIO"]','field tableView focus control-input')
+    # registrar_status(dados['peca']['codigo'], status)
 
-        if etapa != dados['etapas'][-1]:
+    # nav.switch_to.default_content()
 
-            # Clica em adicionar etapa
-            clicar_ate_classe(nav,'//*[@id="explorer_RECURSOETAPA"]//div[@id="insertButton"]','grid-titleBar-button grid-titleBar-newRecordButton-inactive')
-            time.sleep(2)
-
-        else:
-            #Mudar visualização de etapas
-            mudar_visualizacao(nav, '//*[@id="explorer_RECURSOETAPA"]//div[@id="changeViewButton"]', '//*[@id="explorer_RECURSOETAPA"]//input[@name="ORDEM"]','field formView editingRecord focus control-input')
-            print('nao tem proxima etapa, finalizar')
-
-        cont_etapa+=1
-
-    registrar_status(dados['peca']['codigo'], status)
+    time.sleep(0.5)
+    # Fechar aba ativa
+    # WebDriverWait(nav, 4).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="tabs"]//div[@class="process-tab-right-active"]'))).click()
 
     # recomecar(nav)
 
@@ -1330,7 +1356,9 @@ while True:
         login(nav)
 
         for dados in dados_peca['pecas']:
-            print('dados: ',dados)
+            
+            # dados = dados_peca['pecas'][0]
+
             menu_cadastro(nav)
 
             iframes(nav)
@@ -1340,7 +1368,6 @@ while True:
             mudar_visualizacao(nav, '//*[@id="explorer"]//div[@id="changeViewButton"]', '//*[@id="explorer"]//input[@name="CODIGO"]','field formView editingRecord focus control-input')
 
             status = preencher_cadastro_peca(nav, dados)
-            print(status)
 
         print("acabou")
 

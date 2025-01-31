@@ -16,8 +16,8 @@ urlpatterns = [
     path('api/etapas-choices/', views.get_etapas_choices, name='etapas_choices'),
     path('api/recursos/', views.get_recursos, name='get_recursos'),
 
-    path('gerar-json/pecas', views.gerar_json_view_pecas, name='gerar_json_view_pecas'),
-    path('gerar-json/conjuntos', views.gerar_json_view_conjuntos, name='gerar_json_view_conjuntos'),
+    path('gerar-json/pecas', views.gerar_json_view_pecas, name='gerar_json_view_pecas'), # api para buscar as peças pendentes de cadastro
+    path('gerar-json/conjuntos', views.gerar_json_view_conjuntos, name='gerar_json_view_conjuntos'), # api para buscar os conjuntos pendentes de cadastro
     path('registrar-status/', views.registrar_status, name='registrar_status'),
 
     # Cadastros gerais
